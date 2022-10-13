@@ -108,24 +108,28 @@ class Game(db.Model):
                 for player in self.players:
                     if player != player_moved:
                         self.results.append(GameResult(result=GameResultChoice.LOSS, player=player))                
+                self.status = GameStatus.COMPLETED
                 db.session.commit()
+                print("VERTICAL_WIN")
                 return
         # Look for a horizontal win
         horizontal_moves = self.moves.filter(GameMove.column_placed==col)
         if horizontal_moves.count() == self.max_rows:
-            if all([move.player_moved == player_moved for move in vertical_moves]):
+            if all([move.player_moved == player_moved for move in horizontal_moves]):
                 # player_moved won
-                db.session.add(GameResult(game=self.id, result=GameResultChoice.WIN, player=player_moved))
+                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.WIN, player=player_moved))
                 for player in self.players:
                     if player != player_moved:
-                        db.session.add(GameResult(game=self.id, result=GameResultChoice.LOSS, player=player))
+                        db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))
+                self.status = GameStatus.COMPLETED
                 db.session.commit()
+                print("HORIZONTAL_WIN")
                 return
         # Look for a left diagonal win
         if lies_on_left_diagonal(row, col, self.max_rows):
             all_in_a_row = True
             for x, y in points_on_left_diagonal(self.max_rows):
-                if not self.moves.filter(GameMove.row_placed==x, GameMove.column_placed==y).count() != 1:
+                if self.moves.filter(GameMove.row_placed==x, GameMove.column_placed==y).count() != 1:
                     all_in_a_row = False
                     break
                 move = self.moves.filter(GameMove.row_placed==x, GameMove.column_placed==y).first()
@@ -134,35 +138,37 @@ class Game(db.Model):
                     break
             if all_in_a_row:
                 # player_moved won
-                db.session.add(GameResult(game=self.id, result=GameResultChoice.WIN, player=player_moved))
-                for player in self.players.filter(GameMove.player!=player_moved):
-                    db.session.add(GameResult(game=self.id, result=GameResultChoice.LOSS, player=player))                
+                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.WIN, player=player_moved))
+                for player in self.players.filter(GameMove.player_moved!=player_moved):
+                    db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))                
+                self.status = GameStatus.COMPLETED
+                print("LEFT DIAG WIN")
                 db.session.commit()
         # Look for a right diagonal win
         if lies_on_right_diagonal(row, col, self.max_rows):
             for x, y in points_on_right_diagonal(self.max_rows):
                 all_in_a_row = True
-                if not self.moves.filter(GameMove.row_placed==row, GameMove.col_placed==col).count() != 1:
+                if self.moves.filter(GameMove.row_placed==x, GameMove.column_placed==y).count() != 1:
                     all_in_a_row = False
                     break
-                move = self.moves.filter(GameMove.row_placed==row, GameMove.col_placed==col).first()
+                move = self.moves.filter(GameMove.row_placed==x, GameMove.column_placed==y).first()
                 if move.player_moved != player_moved:
                     all_in_a_row = False
                     break
-                if all_in_a_row:
-                    # player_moved won
-                    db.session.add(GameResult(game=self.id, result=GameResultChoice.WIN, player=player_moved))
-                    for player in self.players.filter(GameMove.player!=player_moved):
-                        db.session.add(GameResult(game=self.id, result=GameResultChoice.LOSS, player=player))                
-                    db.session.commit()
+            if all_in_a_row:
+                # player_moved won
+                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.WIN, player=player_moved))
+                for player in self.players.filter(GameMove.player_moved!=player_moved):
+                    db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))                
+                self.status = GameStatus.COMPLETED
+                db.session.commit()
         # Look for a tie
         if self.moves.count() == (self.max_rows * self.max_columns):
             # All get ties
             for player in self.players:
-                db.session.add(GameResult(game=self.id, result=GameResultChoice.TIE, player=player))
+                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.TIE, player=player))
             self.status = GameStatus.COMPLETED
             db.session.add(self)
-            
             db.session.commit()
 
     def join_game(self, user) -> None:

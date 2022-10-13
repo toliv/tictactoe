@@ -146,5 +146,121 @@ def test_make_move_exceptions(session, user, game):
         ["", "", ""],
     ]
 
+    # The other user cannot make a move here
+    with pytest.raises(InvalidMoveException):
+        game.make_move(other_user, 0, 0)
+    
+    assert game.board_serialization() == [
+        ["X", "", ""],
+        ["", "", ""],
+        ["", "", ""],
+    ]
+
+def test_game_lifecycle_vertical_win(session, user, game):
+    other_user = User()
+    session.add(other_user)
+    session.commit()
+    game.join_game(user)
+    game.join_game(other_user)
+    session.refresh(game)
+
+    assert game.status == GameStatus.IN_PROGRESS
+
+    game.make_move(user, 0, 0)
+    game.make_move(other_user, 0, 1)
+    game.make_move(user, 1, 0)
+    game.make_move(other_user, 1, 1)
+    game.make_move(user, 2, 0)
+
+    session.refresh(game)
+
+    assert game.status == GameStatus.COMPLETED
+
+def test_game_lifecycle_horizontal_win(session, user, game):
+    other_user = User()
+    session.add(other_user)
+    session.commit()
+    game.join_game(user)
+    game.join_game(other_user)
+    session.refresh(game)
+
+    assert game.status == GameStatus.IN_PROGRESS
+
+    game.make_move(user, 0, 0)
+    game.make_move(other_user, 1, 1)
+    game.make_move(user, 0, 1)
+    game.make_move(other_user, 1, 2)
+    game.make_move(user, 0, 2)
+
+    session.refresh(game)
+
+    assert game.status == GameStatus.COMPLETED
+
+def test_game_lifecycle_left_diagonal_win(session, user, game):
+    other_user = User()
+    session.add(other_user)
+    session.commit()
+    game.join_game(user)
+    game.join_game(other_user)
+    session.refresh(game)
+
+    assert game.status == GameStatus.IN_PROGRESS
+
+    game.make_move(user, 0, 0)
+    game.make_move(other_user, 0, 1)
+    game.make_move(user, 1, 1)
+    game.make_move(other_user, 1, 2)
+    game.make_move(user, 2, 2)
+
+    session.refresh(game)
+
+    assert game.status == GameStatus.COMPLETED
+
+def test_game_lifecycle_right_diagonal_win(session, user, game):
+    other_user = User()
+    session.add(other_user)
+    session.commit()
+    game.join_game(user)
+    game.join_game(other_user)
+    session.refresh(game)
+
+    assert game.status == GameStatus.IN_PROGRESS
+
+    game.make_move(user, 0, 2)
+    game.make_move(other_user, 0, 1)
+    game.make_move(user, 1, 1)
+    game.make_move(other_user, 1, 2)
+    game.make_move(user, 2, 0)
+
+    session.refresh(game)
+
+    assert game.status == GameStatus.COMPLETED
+
+def test_game_lifecycle_tie_result(session, user, game):
+    other_user = User()
+    session.add(other_user)
+    session.commit()
+    game.join_game(user)
+    game.join_game(other_user)
+    session.refresh(game)
+
+    assert game.status == GameStatus.IN_PROGRESS
+
+    game.make_move(user, 0, 0)
+    game.make_move(other_user, 1, 0)
+    game.make_move(user, 0, 1)
+    game.make_move(other_user, 1, 1)
+    game.make_move(user, 2, 0)
+    game.make_move(other_user, 2, 1)
+    game.make_move(user, 2, 2)
+    game.make_move(other_user, 0, 2)
+    game.make_move(user, 1, 2)
+
+    session.refresh(game)   
+
+    assert game.status == GameStatus.COMPLETED
+
+
+
 
     
