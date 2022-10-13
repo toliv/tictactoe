@@ -1,7 +1,6 @@
 from typing import List, Optional
-from sqlalchemy import CHAR, String, Enum
+from sqlalchemy import String, Enum
 from tic_tac_toe.database import db
-from sqlalchemy.dialects.postgresql import ARRAY
 
 import enum
 
@@ -31,7 +30,6 @@ class GameResult(db.Model):
 
     # relationships
     player = db.relationship("GamePlayer")
-    # game = db.relationship("Game")
 
 class GameMove(db.Model):
     __tablename__ = "game_moves"
@@ -110,7 +108,6 @@ class Game(db.Model):
                         self.results.append(GameResult(result=GameResultChoice.LOSS, player=player))                
                 self.status = GameStatus.COMPLETED
                 db.session.commit()
-                print("VERTICAL_WIN")
                 return
         # Look for a horizontal win
         horizontal_moves = self.moves.filter(GameMove.column_placed==col)
@@ -123,7 +120,6 @@ class Game(db.Model):
                         db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))
                 self.status = GameStatus.COMPLETED
                 db.session.commit()
-                print("HORIZONTAL_WIN")
                 return
         # Look for a left diagonal win
         if lies_on_left_diagonal(row, col, self.max_rows):
@@ -142,7 +138,6 @@ class Game(db.Model):
                 for player in self.players.filter(GameMove.player_moved!=player_moved):
                     db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))                
                 self.status = GameStatus.COMPLETED
-                print("LEFT DIAG WIN")
                 db.session.commit()
         # Look for a right diagonal win
         if lies_on_right_diagonal(row, col, self.max_rows):
@@ -189,7 +184,6 @@ class Game(db.Model):
             self.status = GameStatus.IN_PROGRESS
         db.session.add(self)
         db.session.commit()
-
     
     def make_move(self, user, row, col) -> None:
         # Validate the move
