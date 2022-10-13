@@ -35,7 +35,7 @@ def test_non_empty_board_serialization(session, user, game):
     player = GamePlayer(user=user, game_id = game.id, marker="X", turn=0)
     session.add(player)
     session.flush()
-    game_move = GameMove(game=game.id, row_placed=0, column_placed=1, player_moved=player)
+    game_move = GameMove(game_id=game.id, row_placed=0, column_placed=1, player_moved=player)
     session.add(game_move)
     session.flush()
     print(game_move.player_moved)
@@ -47,7 +47,7 @@ def test_non_empty_board_serialization(session, user, game):
 def test_space_occupied(session, user, game):
     player = GamePlayer(user=user, game_id = game.id, marker="X", turn=0)
     assert game.space_occupied(0, 0) == False
-    game_move = GameMove(game=game.id, row_placed=0, column_placed=1, player_moved=player.id)
+    game_move = GameMove(game_id=game.id, row_placed=0, column_placed=1, player_moved=player.id)
     session.add(game_move)
     session.flush()
     assert game.space_occupied(0, 0) == False
@@ -56,7 +56,7 @@ def test_space_occupied(session, user, game):
 def test_most_recent_move(session, user, game):
     player = GamePlayer(user=user, game_id = game.id, marker="X", turn=0)
     assert game.most_recent_move() == None # no moves yet
-    game_move = GameMove(game=game.id, row_placed=0, column_placed=1, player_moved=player.id)
+    game_move = GameMove(game_id=game.id, row_placed=0, column_placed=1, player_moved=player.id)
     session.add(game_move)
     session.flush()
     assert game.most_recent_move() == game_move
@@ -72,13 +72,13 @@ def test_player_turn(session, user, game):
 
     assert game.player_turn() == user # player1
     # A move is made
-    game_move = GameMove(game=game.id, row_placed=0, column_placed=1, player_moved=player1)
+    game_move = GameMove(game_id=game.id, row_placed=0, column_placed=1, player_moved=player1)
     session.add(game_move)
     session.flush()
     # Other's turn
     assert game.player_turn() == other_user
     # Flip back again
-    game_move = GameMove(game=game.id, row_placed=0, column_placed=1, player_moved=player2)
+    game_move = GameMove(game_id=game.id, row_placed=0, column_placed=1, player_moved=player2)
     session.add(game_move)
     session.flush()
 
@@ -139,7 +139,7 @@ def test_make_move_exceptions(session, user, game):
         game.make_move(user, 3, 3)
 
     game.make_move(user, 0, 0)
-    
+
     assert game.board_serialization() == [
         ["X", "", ""],
         ["", "", ""],

@@ -31,7 +31,7 @@ class GameResult(db.Model):
 
     # relationships
     player = db.relationship("GamePlayer")
-    game = db.relationship("Game")
+    # game = db.relationship("Game")
 
 class GameMove(db.Model):
     __tablename__ = "game_moves"
@@ -42,7 +42,7 @@ class GameMove(db.Model):
     column_placed = db.Column(db.Integer)
     player_moved_id = db.Column(db.Integer, db.ForeignKey("game_players.id"))
     # Set if there is a next move
-    next_move = db.Column(db.Integer, db.ForeignKey("game_moves.id"), nullable=True)
+    next_move_id = db.Column(db.Integer, db.ForeignKey("game_moves.id"), nullable=True)
 
     # relationships
     player_moved = db.relationship("GamePlayer")
@@ -90,7 +90,7 @@ class Game(db.Model):
     def most_recent_move(self) -> Optional[GameMove]:
         if not self.moves:
             return None
-        return self.moves.filter(GameMove.next_move==None).first()
+        return self.moves.filter(GameMove.next_move_id==None).first()
 
     def player_turn(self) -> User:
         num_moves_done = self.moves.count()
@@ -99,19 +99,20 @@ class Game(db.Model):
 
     def process_game_state(self, row, col, player_moved) -> None:
         # Look for a vertical win
-        vertical_moves = self.moves.filter(row_placed=row)
-        if len(vertical_moves) == self.max_rows:
+        vertical_moves = self.moves.filter(GameMove.row_placed==row)
+        if vertical_moves.count() == self.max_rows:
             if all([move.player_moved == player_moved for move in vertical_moves]):
                 # player_moved won
-                db.session.add(GameResult(game=self.id, result=GameResultChoice.WIN, player=player_moved))
+                self.results.append(GameResult(result=GameResultChoice.WIN, player=player_moved))
+
                 for player in self.players:
                     if player != player_moved:
-                        db.session.add(GameResult(game=self.id, result=GameResultChoice.LOSS, player=player))                
+                        self.results.append(GameResult(result=GameResultChoice.LOSS, player=player))                
                 db.session.commit()
                 return
         # Look for a horizontal win
-        horizontal_moves = self.moves.filter(col_placed=col)
-        if len(horizontal_moves) == self.max_rows:
+        horizontal_moves = self.moves.filter(GameMove.column_placed==col)
+        if horizontal_moves.count() == self.max_rows:
             if all([move.player_moved == player_moved for move in vertical_moves]):
                 # player_moved won
                 db.session.add(GameResult(game=self.id, result=GameResultChoice.WIN, player=player_moved))
@@ -124,10 +125,10 @@ class Game(db.Model):
         if lies_on_left_diagonal(row, col, self.max_rows):
             all_in_a_row = True
             for x, y in points_on_left_diagonal(self.max_rows):
-                if not self.moves.filter(GameMove.row_placed==x, GameMove.col_placed==y).count() != 1:
+                if not self.moves.filter(GameMove.row_placed==x, GameMove.column_placed==y).count() != 1:
                     all_in_a_row = False
                     break
-                move = self.moves.filter(GameMove.row_placed==x, GameMove.col_placed==y).first()
+                move = self.moves.filter(GameMove.row_placed==x, GameMove.column_placed==y).first()
                 if move.player_moved != player_moved:
                     all_in_a_row = False
                     break
@@ -198,10 +199,10 @@ class Game(db.Model):
 
         # Persist the move
         game_player = self.players.filter(GamePlayer.user==user).first()
-        move = GameMove(game_id=self.id, row_placed=row, column_placed=col, player_moved=game_player.id)
+        move = GameMove(game_id=self.id, row_placed=row, column_placed=col, player_moved=game_player)
         db.session.add(move)
         if last_move := self.most_recent_move():
-            last_move.next_move = move
+            last_move.next_move_id = move.id
             db.session.add(last_move)
         # Persist to the db
         db.session.commit()
