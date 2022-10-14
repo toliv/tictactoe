@@ -10,7 +10,7 @@ routes_blueprint = Blueprint('', __name__)
 
 @routes_blueprint.route("/")
 def hello_world():
-    return jsonify(hello="world")
+    return jsonify(tic_tac="toe")
 
 @routes_blueprint.route("/users", methods=["POST", "GET"])
 def users():
