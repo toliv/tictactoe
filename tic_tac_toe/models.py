@@ -68,6 +68,12 @@ class GamePlayer(db.Model):
     # relationships
     user = db.relationship("User")
 
+    def to_dict(self):
+        return {
+            "user_id" : self.user_id,
+            "marker" : self.marker
+        }
+
 
 class Game(db.Model):
     __tablename__ = "games"
@@ -88,8 +94,10 @@ class Game(db.Model):
             "id" : self.id,
             "status" : self.status.value,
             "board" : self.board_serialization(),
-            "players" : [player.user_id for player in self.players],
+            "board_size" : self.max_rows, # Only support a square board for now
+            "players" : [player.to_dict() for player in self.players],
             "results" : [result.to_dict() for result in self.results],
+            "player_turn" : self.player_turn().id if self.status == 'in_progress' else None,
         }
     
     def board_serialization(self) -> List[List[str]]:
@@ -154,6 +162,7 @@ class Game(db.Model):
                     break
             if all_in_a_row:
                 self.process_player_win(player_moved)
+                return
         # Look for a right diagonal win
         if lies_on_right_diagonal(row, col, self.max_rows):
             for x, y in points_on_right_diagonal(self.max_rows):
@@ -167,6 +176,7 @@ class Game(db.Model):
                     break
             if all_in_a_row:
                 self.process_player_win(player_moved)
+                return
         # Look for a tie
         if self.moves.count() == (self.max_rows * self.max_columns):
             self.process_game_tie()
