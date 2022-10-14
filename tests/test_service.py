@@ -65,7 +65,6 @@ def test_play_game(client):
         "row" : 0, 
         "column" : 0,
     })
-    print(move_response.text)
 
     assert move_response.status_code == 200
     assert move_response.json['board'] == [
@@ -73,3 +72,50 @@ def test_play_game(client):
         ["", "", ""],
         ["", "", ""],
     ]
+
+    move_response = client.post(f"/games/{game.json['id']}/move", data={
+        "user_id" : other_user.json['id'],
+        "row" : 0, 
+        "column" : 1,
+    })
+
+    assert move_response.status_code == 200
+    assert move_response.json['board'] == [
+        ["X", "O", ""],
+        ["", "", ""],
+        ["", "", ""],
+    ]
+    move_response = client.post(f"/games/{game.json['id']}/move", data={
+        "user_id" : user.json['id'],
+        "row" : 1, 
+        "column" : 0,
+    })
+    assert move_response.json['board'] == [
+        ["X", "O", ""],
+        ["X", "", ""],
+        ["", "", ""],
+    ]
+
+    move_response = client.post(f"/games/{game.json['id']}/move", data={
+        "user_id" : other_user.json['id'],
+        "row" : 1, 
+        "column" : 1,
+    })
+    assert move_response.json['board'] == [
+        ["X", "O", ""],
+        ["X", "O", ""],
+        ["", "", ""],
+    ]
+    move_response = client.post(f"/games/{game.json['id']}/move", data={
+        "user_id" : user.json['id'],
+        "row" : 2, 
+        "column" : 0,
+    })
+    assert move_response.json['board'] == [
+        ["X", "O", ""],
+        ["X", "O", ""],
+        ["X", "", ""],
+    ]
+    assert move_response.json['status'] == 'completed'
+    assert {'result': 'win', 'user_id': user.json['id']} in move_response.json['results']
+    assert {'result': 'loss', 'user_id': other_user.json['id']} in move_response.json['results']
