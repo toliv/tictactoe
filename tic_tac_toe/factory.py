@@ -11,6 +11,7 @@ def create_app(name=None, settings_override=None):
         app.config.update(settings_override)
 
     from tic_tac_toe.database import db
+
     db.init_app(app)
     app.register_blueprint(routes_blueprint)
 

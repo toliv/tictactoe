@@ -4,16 +4,15 @@ import pytest
 from tic_tac_toe.factory import create_app
 from tic_tac_toe.database import db as _db
 
-TEST_DATABASE_URI = "postgresql://hello_flask:hello_flask@localhost:5432/hello_flask_dev"
+TEST_DATABASE_URI = (
+    "postgresql://hello_flask:hello_flask@localhost:5432/hello_flask_dev"
+)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def app(request):
     """Session-wide test `Flask` application."""
-    settings_override = {
-        'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': TEST_DATABASE_URI
-    }
+    settings_override = {"TESTING": True, "SQLALCHEMY_DATABASE_URI": TEST_DATABASE_URI}
     app = create_app(__name__, settings_override)
 
     # Establish an application context before running the tests.
@@ -27,7 +26,7 @@ def app(request):
     return app
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def db(app, request):
     """Session-wide test database."""
     # if os.path.exists(TESTDB_PATH):
@@ -44,7 +43,7 @@ def db(app, request):
     return _db
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def session(db, request):
     """Creates a new database session for a test."""
     connection = db.engine.connect()

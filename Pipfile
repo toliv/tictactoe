@@ -10,6 +10,7 @@ psycopg2-binary = "*"
 pytest-flask-sqlalchemy = "*"
 pytest-postgresql = "*"
 psycopg = "*"
+black = "*"
 
 [dev-packages]
 
