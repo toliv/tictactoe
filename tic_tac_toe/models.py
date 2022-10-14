@@ -21,6 +21,11 @@ class User(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
 
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id
+        }
+
 class GameResult(db.Model):
     __tablename__ = "gameresults"
     id = db.Column(db.Integer, primary_key=True)
@@ -30,6 +35,12 @@ class GameResult(db.Model):
 
     # relationships
     player = db.relationship("GamePlayer")
+
+    def to_dict(self) -> dict:
+        return {
+            "user_id": self.player.user_id,
+            "result" : self.result.value,
+        }
 
 class GameMove(db.Model):
     __tablename__ = "game_moves"
@@ -57,6 +68,7 @@ class GamePlayer(db.Model):
     # relationships
     user = db.relationship("User")
 
+
 class Game(db.Model):
     __tablename__ = "games"
 
@@ -71,6 +83,15 @@ class Game(db.Model):
     players = db.relationship("GamePlayer", lazy='dynamic', backref="game") # One-To-Many
     results = db.relationship("GameResult") # One-To-Many
 
+    def to_dict(self) -> dict:
+        return {
+            "id" : self.id,
+            "status" : self.status.value,
+            "board" : self.board_serialization(),
+            "players" : [player.user_id for player in self.players],
+            "results" : [result.to_dict() for result in self.results],
+        }
+    
     def board_serialization(self) -> List[List[str]]:
         # Get all GameMoves, serialize
         board = [["" for c in range(self.max_columns)] for r in range(self.max_rows)]
@@ -95,32 +116,31 @@ class Game(db.Model):
         turn = (num_moves_done % self.max_players)
         return self.players.filter(GamePlayer.turn==turn).first().user
 
-    def process_game_state(self, row, col, player_moved) -> None:
-        # Look for a vertical win
-        vertical_moves = self.moves.filter(GameMove.row_placed==row)
-        if vertical_moves.count() == self.max_rows:
-            if all([move.player_moved == player_moved for move in vertical_moves]):
-                # player_moved won
-                self.results.append(GameResult(result=GameResultChoice.WIN, player=player_moved))
+    def process_player_win(self, player_moved):
+        self.results.append(GameResult(result=GameResultChoice.WIN, player=player_moved))
+        for player in self.players:
+            if player != player_moved:
+                self.results.append(GameResult(result=GameResultChoice.LOSS, player=player))                
+        self.status = GameStatus.COMPLETED
+        db.session.commit()
 
-                for player in self.players:
-                    if player != player_moved:
-                        self.results.append(GameResult(result=GameResultChoice.LOSS, player=player))                
-                self.status = GameStatus.COMPLETED
-                db.session.commit()
-                return
-        # Look for a horizontal win
-        horizontal_moves = self.moves.filter(GameMove.column_placed==col)
+    def process_game_tie(self):
+        for player in self.players:
+            self.results.append(GameResult(result=GameResultChoice.TIE, player=player))                
+        self.status = GameStatus.COMPLETED
+        db.session.commit()
+
+    def process_game_state(self, row, col, player_moved) -> None:
+        # Look for a vertical win by filtering for GameMoves along this row by this player
+        vertical_moves = self.moves.filter(GameMove.row_placed==row, GameMove.player_moved==player_moved)
+        if vertical_moves.count() == self.max_rows:
+            self.process_player_win(player_moved)
+            return
+        # Look for a horizontal win by filtering for GameMoves along this row by this player
+        horizontal_moves = self.moves.filter(GameMove.column_placed==col, GameMove.player_moved==player_moved)
         if horizontal_moves.count() == self.max_rows:
-            if all([move.player_moved == player_moved for move in horizontal_moves]):
-                # player_moved won
-                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.WIN, player=player_moved))
-                for player in self.players:
-                    if player != player_moved:
-                        db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))
-                self.status = GameStatus.COMPLETED
-                db.session.commit()
-                return
+            self.process_player_win(player_moved)
+            return
         # Look for a left diagonal win
         if lies_on_left_diagonal(row, col, self.max_rows):
             all_in_a_row = True
@@ -133,12 +153,7 @@ class Game(db.Model):
                     all_in_a_row = False
                     break
             if all_in_a_row:
-                # player_moved won
-                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.WIN, player=player_moved))
-                for player in self.players.filter(GameMove.player_moved!=player_moved):
-                    db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))                
-                self.status = GameStatus.COMPLETED
-                db.session.commit()
+                self.process_player_win(player_moved)
         # Look for a right diagonal win
         if lies_on_right_diagonal(row, col, self.max_rows):
             for x, y in points_on_right_diagonal(self.max_rows):
@@ -151,42 +166,32 @@ class Game(db.Model):
                     all_in_a_row = False
                     break
             if all_in_a_row:
-                # player_moved won
-                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.WIN, player=player_moved))
-                for player in self.players.filter(GameMove.player_moved!=player_moved):
-                    db.session.add(GameResult(game_id=self.id, result=GameResultChoice.LOSS, player=player))                
-                self.status = GameStatus.COMPLETED
-                db.session.commit()
+                self.process_player_win(player_moved)
         # Look for a tie
         if self.moves.count() == (self.max_rows * self.max_columns):
-            # All get ties
-            for player in self.players:
-                db.session.add(GameResult(game_id=self.id, result=GameResultChoice.TIE, player=player))
-            self.status = GameStatus.COMPLETED
-            db.session.add(self)
-            db.session.commit()
+            self.process_game_tie()
 
     def join_game(self, user) -> None:
+        # Validate joining a game
         if self.players.filter(GamePlayer.user==user).count() > 0:
             raise UnableToJoinGameException(f"User {user.id} already joined game {self.id}")
         if self.players.count() == self.max_players:
             raise UnableToJoinGameException(f"Game {self.id} has no more player spots.")
         
-        # Only support max size 2 for now
+        # Only support max size 2 for now. First player will have X, second player will have O
         marker = "X" if self.players.count() == 0 else "O"
         turn = self.players.count()
-        # Actually join
+        # Join by adding a GamePlayer instance
         player = GamePlayer(user=user, game=self, marker=marker, turn=turn)
         db.session.add(player)
-        db.session.commit()
-        # Change state if necessary
+        # If we've reached the max players, the game can begin
         if self.players.count() == self.max_players:
             self.status = GameStatus.IN_PROGRESS
         db.session.add(self)
         db.session.commit()
     
     def make_move(self, user, row, col) -> None:
-        # Validate the move
+        # Move validation
         if self.status != GameStatus.IN_PROGRESS:
             raise InvalidMoveException(f"Cannot make a move on a game in {self.status.value} status")
         if user != self.player_turn():
@@ -194,7 +199,6 @@ class Game(db.Model):
         if not self.valid_space(row,col):
             raise InvalidMoveException(f"Position ({row},{col}) is invalid.")
         if self.space_occupied(row, col):
-            # Do not allow
             raise InvalidMoveException("Space ({row}, {col}) is already occupied!")
 
         # Persist the move
