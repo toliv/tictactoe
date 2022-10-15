@@ -13,6 +13,7 @@ routes_blueprint = Blueprint("", __name__)
 def hello_world():
     return jsonify(tic_tac="toe")
 
+
 @routes_blueprint.route("/users", methods=["POST", "GET"])
 def users():
     if request.method == "POST":
@@ -63,7 +64,7 @@ def join_game(id: int):
 
 
 @routes_blueprint.route("/games/<int:id>/move", methods=["POST"])
-def move(id:int ):
+def move(id: int):
     game = Game.query.get(id)
     if not game:
         return f"Game {id} not found.", 404

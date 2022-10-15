@@ -143,10 +143,8 @@ class Game(db.Model):
         self.results.append(
             GameResult(result=GameResultChoice.WIN, player=player_moved)
         )
-        for player in self.players.filter(GamePlayer.id!=player_moved.id):
-            self.results.append(
-                    GameResult(result=GameResultChoice.LOSS, player=player)
-                )
+        for player in self.players.filter(GamePlayer.id != player_moved.id):
+            self.results.append(GameResult(result=GameResultChoice.LOSS, player=player))
         self.status = GameStatus.COMPLETED
         db.session.commit()
 
@@ -156,33 +154,55 @@ class Game(db.Model):
         self.status = GameStatus.COMPLETED
         db.session.commit()
 
-    def player_mark_at_position(self, row: int, col: int, player_moved: GamePlayer) -> bool:
-        return self.moves.filter(GameMove.row_placed == row, GameMove.column_placed == col, GameMove.player_moved==player_moved).count() == 1
+    def player_mark_at_position(
+        self, row: int, col: int, player_moved: GamePlayer
+    ) -> bool:
+        return (
+            self.moves.filter(
+                GameMove.row_placed == row,
+                GameMove.column_placed == col,
+                GameMove.player_moved == player_moved,
+            ).count()
+            == 1
+        )
 
     def process_game_state(self, row: int, col: int, player_moved: GamePlayer) -> None:
         # Look for a vertical win by filtering for GameMoves along this row by this player
-        if all([self.player_mark_at_position(row, i, player_moved) for i in range(self.max_rows)]):
+        if all(
+            [
+                self.player_mark_at_position(row, i, player_moved)
+                for i in range(self.max_rows)
+            ]
+        ):
             self.process_player_win(player_moved)
             return
         # Look for a horizontal win by filtering for GameMoves along this row by this player
-        # horizontal_moves = self.moves.filter(
-        #     GameMove.column_placed == col, GameMove.player_moved == player_moved
-        # )
-        # if horizontal_moves.count() == self.max_rows:
-        #     self.process_player_win(player_moved)
-        #     return
-
-        if all([self.player_mark_at_position(i, col, player_moved) for i in range(self.max_rows)]):
+        if all(
+            [
+                self.player_mark_at_position(i, col, player_moved)
+                for i in range(self.max_rows)
+            ]
+        ):
             self.process_player_win(player_moved)
             return
         # Look for a left diagonal win
         if lies_on_left_diagonal(row, col, self.max_rows):
-            if all([self.player_mark_at_position(x, y, player_moved) for x,y in points_on_left_diagonal(self.max_rows)]):
+            if all(
+                [
+                    self.player_mark_at_position(x, y, player_moved)
+                    for x, y in points_on_left_diagonal(self.max_rows)
+                ]
+            ):
                 self.process_player_win(player_moved)
                 return
         # Look for a right diagonal win
         if lies_on_right_diagonal(row, col, self.max_rows):
-            if all([self.player_mark_at_position(x, y, player_moved) for x,y in points_on_right_diagonal(self.max_rows)]):
+            if all(
+                [
+                    self.player_mark_at_position(x, y, player_moved)
+                    for x, y in points_on_right_diagonal(self.max_rows)
+                ]
+            ):
                 self.process_player_win(player_moved)
                 return
         # Look for a tie
