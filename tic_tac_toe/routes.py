@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, g, jsonify, request, current_app
 from tic_tac_toe.database import db
 from tic_tac_toe.errors import InvalidMoveException, UnableToJoinGameException
 
@@ -12,7 +12,6 @@ routes_blueprint = Blueprint("", __name__)
 @routes_blueprint.route("/")
 def hello_world():
     return jsonify(tic_tac="toe")
-
 
 @routes_blueprint.route("/users", methods=["POST", "GET"])
 def users():
@@ -40,7 +39,7 @@ def create_game():
 
 
 @routes_blueprint.route("/games/<int:id>", methods=["GET"])
-def games(id):
+def games(id: int):
     game = Game.query.get(id)
     if not game:
         return f"Game {id} not found.", 404
@@ -48,7 +47,7 @@ def games(id):
 
 
 @routes_blueprint.route("/games/<int:id>/join", methods=["POST"])
-def join_game(id):
+def join_game(id: int):
     game = Game.query.get(id)
     if not game:
         return f"Game {id} not found.", 404
@@ -64,7 +63,7 @@ def join_game(id):
 
 
 @routes_blueprint.route("/games/<int:id>/move", methods=["POST"])
-def move(id):
+def move(id:int ):
     game = Game.query.get(id)
     if not game:
         return f"Game {id} not found.", 404

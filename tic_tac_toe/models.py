@@ -118,10 +118,10 @@ class Game(db.Model):
 
         return board
 
-    def valid_space(self, row, col) -> bool:
+    def valid_space(self, row: int, col: int) -> bool:
         return (0 <= row < self.max_rows) and (0 <= col < self.max_columns)
 
-    def space_occupied(self, row, col) -> bool:
+    def space_occupied(self, row: int, col: int) -> bool:
         return (
             self.moves.filter(
                 GameMove.row_placed == row, GameMove.column_placed == col
@@ -139,13 +139,12 @@ class Game(db.Model):
         turn = num_moves_done % self.max_players
         return self.players.filter(GamePlayer.turn == turn).first().user
 
-    def process_player_win(self, player_moved):
+    def process_player_win(self, player_moved: GamePlayer):
         self.results.append(
             GameResult(result=GameResultChoice.WIN, player=player_moved)
         )
-        for player in self.players:
-            if player != player_moved:
-                self.results.append(
+        for player in self.players.filter(GamePlayer.id!=player_moved.id):
+            self.results.append(
                     GameResult(result=GameResultChoice.LOSS, player=player)
                 )
         self.status = GameStatus.COMPLETED
@@ -157,61 +156,33 @@ class Game(db.Model):
         self.status = GameStatus.COMPLETED
         db.session.commit()
 
-    def process_game_state(self, row, col, player_moved) -> None:
+    def player_mark_at_position(self, row: int, col: int, player_moved: GamePlayer) -> bool:
+        return self.moves.filter(GameMove.row_placed == row, GameMove.column_placed == col, GameMove.player_moved==player_moved).count() == 1
+
+    def process_game_state(self, row: int, col: int, player_moved: GamePlayer) -> None:
         # Look for a vertical win by filtering for GameMoves along this row by this player
-        vertical_moves = self.moves.filter(
-            GameMove.row_placed == row, GameMove.player_moved == player_moved
-        )
-        if vertical_moves.count() == self.max_rows:
+        if all([self.player_mark_at_position(row, i, player_moved) for i in range(self.max_rows)]):
             self.process_player_win(player_moved)
             return
         # Look for a horizontal win by filtering for GameMoves along this row by this player
-        horizontal_moves = self.moves.filter(
-            GameMove.column_placed == col, GameMove.player_moved == player_moved
-        )
-        if horizontal_moves.count() == self.max_rows:
+        # horizontal_moves = self.moves.filter(
+        #     GameMove.column_placed == col, GameMove.player_moved == player_moved
+        # )
+        # if horizontal_moves.count() == self.max_rows:
+        #     self.process_player_win(player_moved)
+        #     return
+
+        if all([self.player_mark_at_position(i, col, player_moved) for i in range(self.max_rows)]):
             self.process_player_win(player_moved)
             return
         # Look for a left diagonal win
         if lies_on_left_diagonal(row, col, self.max_rows):
-            all_in_a_row = True
-            for x, y in points_on_left_diagonal(self.max_rows):
-                if (
-                    self.moves.filter(
-                        GameMove.row_placed == x, GameMove.column_placed == y
-                    ).count()
-                    != 1
-                ):
-                    all_in_a_row = False
-                    break
-                move = self.moves.filter(
-                    GameMove.row_placed == x, GameMove.column_placed == y
-                ).first()
-                if move.player_moved != player_moved:
-                    all_in_a_row = False
-                    break
-            if all_in_a_row:
+            if all([self.player_mark_at_position(x, y, player_moved) for x,y in points_on_left_diagonal(self.max_rows)]):
                 self.process_player_win(player_moved)
                 return
         # Look for a right diagonal win
         if lies_on_right_diagonal(row, col, self.max_rows):
-            for x, y in points_on_right_diagonal(self.max_rows):
-                all_in_a_row = True
-                if (
-                    self.moves.filter(
-                        GameMove.row_placed == x, GameMove.column_placed == y
-                    ).count()
-                    != 1
-                ):
-                    all_in_a_row = False
-                    break
-                move = self.moves.filter(
-                    GameMove.row_placed == x, GameMove.column_placed == y
-                ).first()
-                if move.player_moved != player_moved:
-                    all_in_a_row = False
-                    break
-            if all_in_a_row:
+            if all([self.player_mark_at_position(x, y, player_moved) for x,y in points_on_right_diagonal(self.max_rows)]):
                 self.process_player_win(player_moved)
                 return
         # Look for a tie

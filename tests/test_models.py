@@ -57,7 +57,6 @@ def test_non_empty_board_serialization(session, user, game):
     )
     session.add(game_move)
     session.flush()
-    print(game_move.player_moved)
     assert game.board_serialization() == [
         [
             "",
