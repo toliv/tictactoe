@@ -11,11 +11,17 @@ routes_blueprint = Blueprint("", __name__)
 
 @routes_blueprint.route("/")
 def hello_world():
+    """
+    Sanity check endpoint
+    """
     return jsonify(tic_tac="toe")
 
 
 @routes_blueprint.route("/users", methods=["POST", "GET"])
 def users():
+    """
+    Support POST to create a user and GET to fetch a User
+    """
     if request.method == "POST":
         user = User()
         db.session.add(user)
@@ -33,6 +39,9 @@ def users():
 
 @routes_blueprint.route("/games", methods=["POST"])
 def create_game():
+    """
+    POST request to create a Game
+    """
     game = Game()
     db.session.add(game)
     db.session.commit()
@@ -41,6 +50,9 @@ def create_game():
 
 @routes_blueprint.route("/games/<int:id>", methods=["GET"])
 def games(id: int):
+    """
+    GET request to fetch a Game
+    """
     game = Game.query.get(id)
     if not game:
         return f"Game {id} not found.", 404
@@ -49,6 +61,9 @@ def games(id: int):
 
 @routes_blueprint.route("/games/<int:id>/join", methods=["POST"])
 def join_game(id: int):
+    """
+    POST request to join a Game
+    """
     game = Game.query.get(id)
     if not game:
         return f"Game {id} not found.", 404
@@ -65,6 +80,9 @@ def join_game(id: int):
 
 @routes_blueprint.route("/games/<int:id>/move", methods=["POST"])
 def move(id: int):
+    """
+    POST request to make a move on this Game
+    """
     game = Game.query.get(id)
     if not game:
         return f"Game {id} not found.", 404
@@ -72,18 +90,13 @@ def move(id: int):
     user = User.query.get(user_id)
     if not user:
         return f"User {user_id} not found.", 404
-    row = request.form.get("row")
-    column = request.form.get("column")
-    if not (row and column):
+    try:
+        row = request.form.get("row", type=int)
+        column = request.form.get("column", type=int)
+    except ValueError:
+        return f"Provide valid integer types for row and column.", 400
+    if row == None or column == None:
         return f"Row and column must be provided to make a move.", 400
-    try:
-        row = int(row)
-    except ValueError:
-        return f"Provide a valid integer for row.", 400
-    try:
-        column = int(column)
-    except ValueError:
-        return f"Provide a valid integer for column.", 400
     try:
         game.make_move(user, row, column)
     except InvalidMoveException as e:

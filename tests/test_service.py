@@ -85,7 +85,6 @@ def test_play_game(client):
             "column": 0,
         },
     )
-
     assert move_response.status_code == 200
     assert move_response.json["board"] == [
         ["X", "", ""],

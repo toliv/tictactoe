@@ -2,7 +2,7 @@
 
 ## Setup
 
-The service is Dockerized. Install Docker Desktop, then build and start the service by running `docker-compose up`. Validate that you can access the local server by visiting via browser or issuing a `GET` request to
+The service is Dockerized. Install Docker Desktop, then build and start the service by running `docker-compose up`. Validate that you can access the local server by visiting via browser or issuing a `GET` request  (curl, Postman etc) to
 
 http://localhost:5000/
 
@@ -37,11 +37,15 @@ Games in Tic-Tac-Toe are individual games that have shape
 {
     "id" : str,
     "status" : "pending_players"|"in_progress"|"completed",
-    "board" : [[]], // an NxN matrix with Xs and Os where moves have occurred
-    "players": [str], // a list of user id's playing in the game
-    "results" : [GameResult] // a list of GameResult objects (described below)
+    "board" : [[str]], // an NxN square matrix with Xs and Os where moves have occurred
+    "board_size", // N, where the board is an NxN square matrix
+    "players": [GamePlayer], // a list of GamePlayers playing in the game (described below)
+    "results" : [GameResult], // a list of GameResult objects (described below)
+    "player_turn": null|str, // The id of the player who's turn it is to move or null if the game is not in_progress
 }
 ```
+
+### GameResults
 
 A GameResult has shape
 ```json
@@ -51,15 +55,21 @@ A GameResult has shape
 }
 ```
 
+### GamePlayers
+
+A GamePlayer has shape
+```json
+{
+    "user_id": str,
+    "mark" : str // The mark the player is using in this game (an X or an O).
+}
+```
+
 #### The Game Lifecycle
 
 Games proceed in their lifecycle, communicated by status.
 
-A game that has not yet had enough players join has a status of `pending_players`
-
-A game that is ready for a player to make a move (including the first move) has a status of `in_progress`
-
-A game that has reached a terminal state has a status of `completed`.
+A game that is still waiting for enough players to join has a status of `pending_players`. A game that is ready for a player to make a move (including the first move) has a status of `in_progress`. A game that has reached a terminal state has a status of `completed`.
 
 #### Joining a Game
 
@@ -81,5 +91,7 @@ To make a move on a game that is `in_progress`, make a `POST` request to `/games
     "row" : str,
     "column": str
 }
+```
 
 The response will contain a Game reflecting the move. 
+
