@@ -98,6 +98,9 @@ class Game(db.Model):
     results = db.relationship("GameResult")  # One-To-Many
 
     def to_dict(self) -> dict:
+        """
+        Produce a dictionary serializing relevant fields for the Game object
+        """
         return {
             "id": self.id,
             "status": self.status.value,
@@ -111,6 +114,10 @@ class Game(db.Model):
         }
 
     def board_serialization(self) -> List[List[str]]:
+        """
+        Produce a serialized version of the current board state by marking spaces where
+        moves have occurred so far.
+        """
         # Get all GameMoves, serialize
         board = [["" for c in range(self.max_columns)] for r in range(self.max_rows)]
         for move in self.moves:
@@ -119,9 +126,15 @@ class Game(db.Model):
         return board
 
     def valid_space(self, row: int, col: int) -> bool:
+        """
+        Given a row and a column, return whether the coordinate is valid.
+        """
         return (0 <= row < self.max_rows) and (0 <= col < self.max_columns)
 
     def space_occupied(self, row: int, col: int) -> bool:
+        """
+        Given a row and column, return whether the coordinate has been already marked.
+        """
         return (
             self.moves.filter(
                 GameMove.row_placed == row, GameMove.column_placed == col
@@ -130,44 +143,64 @@ class Game(db.Model):
         )
 
     def most_recent_move(self) -> Optional[GameMove]:
+        """
+        Return the most recent GameMove that has occurred, or None if no moves have been made
+        """
         if not self.moves:
             return None
+        # By construction, at most one GameMove could exit with a null next_move
         return self.moves.filter(GameMove.next_move_id == None).first()
 
     def player_turn(self) -> User:
+        """
+        Return the User whose turn it is to move.
+        """
         num_moves_done = self.moves.count()
         turn = num_moves_done % self.max_players
         return self.players.filter(GamePlayer.turn == turn).first().user
 
-    def process_player_win(self, player_moved: GamePlayer):
+    def process_player_win(self, winning_player: GamePlayer):
+        """
+        Process a player win for winning_player, creating a GameResult win for winning_player and a GameResult loss for all other players.
+        Finally, mark this Game's status as COMPLETED.
+        """
         self.results.append(
-            GameResult(result=GameResultChoice.WIN, player=player_moved)
+            GameResult(result=GameResultChoice.WIN, player=winning_player)
         )
-        for player in self.players.filter(GamePlayer.id != player_moved.id):
+        for player in self.players.filter(GamePlayer.id != winning_player.id):
             self.results.append(GameResult(result=GameResultChoice.LOSS, player=player))
         self.status = GameStatus.COMPLETED
         db.session.commit()
 
     def process_game_tie(self):
+        """
+        Process a game tie, creating GameResult ties for all players.
+        Finally, mark this Game's status as COMPLETED.
+        """
         for player in self.players:
             self.results.append(GameResult(result=GameResultChoice.TIE, player=player))
         self.status = GameStatus.COMPLETED
         db.session.commit()
 
-    def player_mark_at_position(
-        self, row: int, col: int, player_moved: GamePlayer
-    ) -> bool:
+    def player_mark_at_position(self, row: int, col: int, player: GamePlayer) -> bool:
+        """
+        Return true if the player has marked the space at (row, col).
+        """
         return (
             self.moves.filter(
                 GameMove.row_placed == row,
                 GameMove.column_placed == col,
-                GameMove.player_moved == player_moved,
+                GameMove.player_moved == player,
             ).count()
             == 1
         )
 
     def process_game_state(self, row: int, col: int, player_moved: GamePlayer) -> None:
-        # Look for a vertical win by filtering for GameMoves along this row by this player
+        """
+        Process the game's state given the most recent move that was done by player_moved at (row, col).
+        Given this information, we can see if the move was a winning move or incurred a tie.
+        """
+        # Look for a vertical win by checking for GameMoves along this row by this player
         if all(
             [
                 self.player_mark_at_position(row, i, player_moved)
@@ -209,8 +242,12 @@ class Game(db.Model):
         if self.moves.count() == (self.max_rows * self.max_columns):
             self.process_game_tie()
 
-    def join_game(self, user) -> None:
-        # Validate joining a game
+    def join_game(self, user: User) -> None:
+        """
+        Have the user join this game if they can. If the game is full or if the user has already joined the game,
+        raise an UnableToJoinGameException.
+        """
+        # Validate this user joining the game
         if self.players.filter(GamePlayer.user == user).count() > 0:
             raise UnableToJoinGameException(
                 f"User {user.id} already joined game {self.id}"
@@ -218,10 +255,11 @@ class Game(db.Model):
         if self.players.count() == self.max_players:
             raise UnableToJoinGameException(f"Game {self.id} has no more player spots.")
 
-        # Only support max size 2 for now. First player will have X, second player will have O
+        # Only support 2 players for now.
+        # First player will have X, second player will have O
         marker = "X" if self.players.count() == 0 else "O"
         turn = self.players.count()
-        # Join by adding a GamePlayer instance
+        # Join the game by adding a GamePlayer instance
         player = GamePlayer(user=user, game=self, marker=marker, turn=turn)
         db.session.add(player)
         # If we've reached the max players, the game can begin
@@ -230,7 +268,10 @@ class Game(db.Model):
         db.session.add(self)
         db.session.commit()
 
-    def make_move(self, user, row, col) -> None:
+    def make_move(self, user: User, row: int, col: int) -> None:
+        """
+        For a given user, make a move. If the user cannot make a move, raise an InvalidMoveException.
+        """
         # Move validation
         if self.status != GameStatus.IN_PROGRESS:
             raise InvalidMoveException(
