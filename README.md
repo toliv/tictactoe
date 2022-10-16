@@ -7,7 +7,7 @@ The service is Dockerized. Install Docker Desktop, then build and start the serv
 http://localhost:5000/
 
 You should be able to see a simple page showing a json
-```json
+```
 {
     "tic_tac": "toe"
 }
@@ -21,7 +21,7 @@ Users in Tic-Tac-Toe are unique individuals that may play in any number of games
 
 User objects are simple and have shape
 
-```json
+```
 {
     "id": str
 }
@@ -33,7 +33,7 @@ A user can be fetched by sending a `GET` request to `/users/{id}`
 ### Games
 
 Games in Tic-Tac-Toe are individual games that have shape
-```json
+```
 {
     "id" : str,
     "status" : "pending_players"|"in_progress"|"completed",
@@ -48,7 +48,7 @@ Games in Tic-Tac-Toe are individual games that have shape
 ### GameResults
 
 A GameResult has shape
-```json
+```
 {
     "user_id": str,
     "result" : "win"|"loss"|"tie"
@@ -58,7 +58,7 @@ A GameResult has shape
 ### GamePlayers
 
 A GamePlayer has shape
-```json
+```
 {
     "user_id": str,
     "mark" : str // The mark the player is using in this game (an X or an O).
@@ -74,7 +74,7 @@ A game that is still waiting for enough players to join has a status of `pending
 #### Joining a Game
 
 To join a game, make a `POST` request to `/games/{game_id}/join` with body
-```json
+```
 {
     "user_id": str   
 }
@@ -85,7 +85,7 @@ The response will contain a Game reflecting the user having joined the game.
 ### Making a Move
 
 To make a move on a game that is `in_progress`, make a `POST` request to `/games/{game_id}/move` with body
-```json
+```
 {
     "user_id": str,
     "row" : str,
